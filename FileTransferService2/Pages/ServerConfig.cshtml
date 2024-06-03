@@ -1,0 +1,79 @@
+﻿@page
+@model FileTransferService2.Pages.ServerConfigModel
+@{
+    ViewData["Title"] = "Настройка подключения к серверу";
+}
+
+<div class="container mt-3">
+    <div class="row">
+        <div class="col">
+            <h2 class="text-center">Настройка подключения к серверу</h2>
+            <form method="post">
+                <div class="form-group">
+                    <label>Наименование Сервер источник:</label>
+                    <input type="text" class="form-control" asp-for="SourceServerName" />
+                </div>
+                <div class="form-group">
+                    <label>Путь к файлам на сервере источнике:</label>
+                    <input type="text" class="form-control" asp-for="SourceServerPath" />
+                </div>
+                <div class="form-group">
+                    <label>Наименование Сервер приемник:</label>
+                    <input type="text" class="form-control" asp-for="DestServerName" />
+                </div>
+                <div class="form-group">
+                    <label>Путь к файлам на сервере приемнике:</label>
+                    <input type="text" class="form-control" asp-for="DestServerPath" />
+                </div>
+                <div class="form-group">
+                    <label>IP адрес и порт FTP сервера источник (формат: ip:port):</label>
+                    <input type="text" class="form-control" asp-for="SourceServerIPPort" />
+                </div>
+                <div class="form-group">
+                    <label>IP адрес и порт FTP сервера приемник (формат: ip:port):</label>
+                    <input type="text" class="form-control" asp-for="DestServerIPPort" />
+                </div>
+                <button type="button" class="btn btn-primary" onclick="checkConnection(1)">Проверить подключение к серверу 1</button>
+                <button type="button" class="btn btn-primary" onclick="checkConnection(2)">Проверить подключение к серверу 2</button>
+                <button type="submit" class="btn btn-success">Сохранить</button>
+            </form>
+            <hr />
+            <h4>Конфигурационные файлы:</h4>
+            <ul>
+                @foreach (var file in Model.ConfigFiles)
+                {
+                    <li>
+                        @file
+                        <button type="button" class="btn btn-danger" onclick="deleteConfigFile('@file')">Удалить</button>
+                    </li>
+                }
+            </ul>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function checkConnection(server) {
+            var url = `/api/ServerConfig/CheckConnection?server=${server}`;
+            fetch(url)
+                .then(response => response.json())
+                .then(data => alert(data.message))
+                .catch(error => console.error('Error:', error));
+        }
+
+        function deleteConfigFile(fileName) {
+            var url = `/api/ServerConfig/DeleteConfigFile?fileName=${fileName}`;
+            fetch(url, { method: 'DELETE' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Ошибка при удалении файла конфигурации');
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+        }
+    </script>
+}

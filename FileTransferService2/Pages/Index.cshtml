@@ -1,0 +1,358 @@
+﻿@page
+@model FileTransferService2.Pages.IndexModel
+@{
+    ViewData["Title"] = "Управление файлами";
+}
+
+<div class="container mt-3">
+    <h2 class="text-center">Управление файлами</h2>
+    <div class="row">
+        <div class="col">
+            <h3 class="text-center text-warning">@Model.SourceServerName</h3>
+            <div class="file-manager" id="source-server" ondrop="onDrop(event, 'source')" ondragover="allowDrop(event)">
+                <div class="file-manager-header">
+                    <button button id="uploadButton1" class="btn btn-primary">Загрузить файл</button>
+                    <input type="file" id="fileInput1" multiple style="display: none;" />
+                </div>
+                <div class="file-manager-content">
+                    <div class="folder-list">
+                        @foreach (var folder in Model.SourceFolders)
+                        {
+                            <div class="folder-item" draggable="true" ondragstart="onDragStart(event, '@folder')" oncontextmenu="showContextMenu(event, '@folder')">
+                                <img src="/img/folder-icon.png" alt="Folder" />
+                                <span class="file-name">@folder</span>
+                            </div>
+                        }
+                    </div>
+                    <div class="file-list">
+                        @foreach (var file in Model.SourceFiles)
+                        {
+                            <div class="file-item" draggable="true" ondragstart="onDragStart(event, '@file')" oncontextmenu="showContextMenu(event, '@file')">
+                                <img src="@Model.GetFileIcon(file)" alt="File" />
+                                <span class="file-name">@file</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col">
+            <h3 class="text-center text-warning">@Model.DestServerName</h3>
+            <div class="file-manager" id="dest-server" ondrop="onDrop(event, 'destination')" ondragover="allowDrop(event)">
+                <div class="file-manager-header">
+                    <button id="uploadButton2" class="btn btn-primary">Загрузить файл</button>
+                    <input type="file" id="fileInput2" multiple style="display: none;" />
+                </div>
+                <div class="file-manager-content">
+                    <div class="folder-list">
+                        @foreach (var folder in Model.DestFolders)
+                        {
+                            <div class="folder-item" draggable="true" ondragstart="onDragStart(event, '@folder')" oncontextmenu="showContextMenu(event, '@folder')">
+                                <img src="/img/folder-icon.png" alt="Folder" />
+                                <span class="file-name">@folder</span>
+                            </div>
+                        }
+                    </div>
+                    <div class="file-list">
+                        @foreach (var file in Model.DestFiles)
+                        {
+                            <div class="file-item" draggable="true" ondragstart="onDragStart(event, '@file')" oncontextmenu="showContextMenu(event, '@file')">
+                                <img src="@Model.GetFileIcon(file)" alt="File" />
+                                <span class="file-name">@file</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="context-menu" class="context-menu">
+    <ul>
+        <li onclick="deleteFile()">Удалить</li>
+        <li onclick="renameFile()">Переименовать</li>
+    </ul>
+</div>
+
+@section Styles {
+    <style>
+        .file-manager button {
+            margin: 10px;
+            padding: 10px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+            .file-manager button:hover {
+                background-color: #0056b3;
+            }
+
+        .file-manager {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-top: 20px;
+        }
+
+        .file-manager-header {
+            margin-bottom: 10px;
+        }
+
+        .folder-list, .file-list {
+            display: flex;
+            flex-wrap: wrap;
+        }
+
+        .folder-item, .file-item {
+            width: 100px;
+            text-align: center;
+            margin: 10px;
+            cursor: move;
+            word-wrap: break-word;
+        }
+
+            .folder-item img, .file-item img {
+                width: 50px;
+                height: 50px;
+            }
+
+        .file-thumbnail {
+            width: 50px;
+            height: 50px;
+        }
+
+        .file-name {
+            display: block;
+            margin-top: 5px;
+            word-wrap: break-word;
+        }
+
+        .context-menu {
+            display: none;
+            position: absolute;
+            z-index: 1000;
+            background: white;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+            border: 1px solid #ccc;
+        }
+
+            .context-menu ul {
+                list-style: none;
+                padding: 0;
+                margin: 0;
+            }
+
+                .context-menu ul li {
+                    padding: 10px;
+                    cursor: pointer;
+                }
+
+                    .context-menu ul li:hover {
+                        background: #f0f0f0;
+                    }
+    </style>
+}
+
+@section Scripts {
+    <script>
+            document.addEventListener("DOMContentLoaded", function () {
+            document.querySelectorAll(".file-name").forEach(function (element) {
+                var fileName = element.textContent.trim();
+                if (fileName.startsWith("/")) {
+                    element.textContent = fileName.substring(1);
+                }
+            });
+        });
+
+        document.getElementById("uploadButton1").addEventListener("click", function () {
+            document.getElementById("fileInput1").click();
+        });
+
+        document.getElementById("fileInput1").addEventListener("change", function (event) {
+            var files = event.target.files;
+            uploadFiles(files, "source");
+        });
+
+        document.getElementById("uploadButton2").addEventListener("click", function () {
+            document.getElementById("fileInput2").click();
+        });
+
+        document.getElementById("fileInput2").addEventListener("change", function (event) {
+            var files = event.target.files;
+            uploadFiles(files, "destination");
+        });
+
+        function uploadFiles(files, server) {
+            var formData = new FormData();
+            for (var i = 0; i < files.length; i++) {
+                formData.append("files", files[i]);
+            }
+            formData.append("server", server);
+
+            fetch("/FileTransfer/UploadFiles", {
+                method: "POST",
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert("Файлы успешно загружены!");
+                        location.reload();
+                    } else {
+                        alert("Ошибка загрузки файлов: " + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error("Ошибка:", error);
+                    alert("Ошибка загрузки файлов: " + error);
+                });
+        }
+
+
+
+        function allowDrop(event) {
+            event.preventDefault();
+        }
+
+        function onDragStart(event, fileName) {
+            event.dataTransfer.setData("text", fileName);
+            event.dataTransfer.setData("sourceId", event.target.closest(".file-manager").id);
+        }
+
+        function onDrop(event, target) {
+            event.preventDefault();
+            var fileName = event.dataTransfer.getData("text");
+            var sourceId = event.dataTransfer.getData("sourceId");
+            var targetElement = event.target.closest(".file-manager");
+            if (!targetElement) {
+                console.error('Target element not found');
+                return;
+            }
+            var targetId = targetElement.id;
+
+            var source = sourceId === "source-server" ? "source" : "destination";
+            var destination = targetId === "source-server" ? "source" : "destination";
+
+            if (source !== destination) {
+                moveFile(fileName, destination);
+            }
+        }
+
+        function moveFile(fileName, target) {
+            fetch('/FileTransfer/MoveFile', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ fileName: fileName, target: target })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Ошибка перемещения файла: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка:', error);
+                });
+        }
+
+        function uploadFile(server) {
+            const fileInput = document.getElementById(`file-upload-${server}`);
+            const file = fileInput.files[0];
+            if (file) {
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('server', server);
+
+                fetch('/FileTransfer/UploadFile', {
+                    method: 'POST',
+                    body: formData
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            location.reload();
+                        } else {
+                            alert('Ошибка загрузки файла: ' + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Ошибка:', error);
+                    });
+            }
+        }
+
+        let selectedFile = '';
+        let selectedServer = '';
+
+        function showContextMenu(event, fileName) {
+            event.preventDefault();
+            selectedFile = fileName;
+            selectedServer = event.target.closest(".file-manager").id === "source-server" ? "source" : "destination";
+            const contextMenu = document.getElementById("context-menu");
+            contextMenu.style.top = `${event.clientY}px`;
+            contextMenu.style.left = `${event.clientX}px`;
+            contextMenu.style.display = "block";
+            document.addEventListener("click", hideContextMenu);
+        }
+
+        function hideContextMenu() {
+            const contextMenu = document.getElementById("context-menu");
+            contextMenu.style.display = "none";
+            document.removeEventListener("click", hideContextMenu);
+        }
+
+        function deleteFile() {
+            if (confirm("Вы действительно хотите удалить этот файл?")) {
+                fetch('/FileTransfer/DeleteFile', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ fileName: selectedFile, server: selectedServer })
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            location.reload();
+                        } else {
+                            alert('Ошибка удаления файла: ' + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Ошибка:', error);
+                    });
+            }
+        }
+
+        function renameFile() {
+            const newFileName = prompt("Введите новое имя файла:", selectedFile);
+            if (newFileName) {
+                fetch('/FileTransfer/RenameFile', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ oldFileName: selectedFile, newFileName: newFileName, server: selectedServer })
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            location.reload();
+                        } else {
+                            alert('Ошибка переименования файла: ' + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Ошибка:', error);
+                    });
+            }
+        }
+    </script>
+}
